@@ -22,6 +22,43 @@ type setScoreResponse struct {
 	Score   int64  `json:"score"`
 }
 
+func (app *application) getTopScoresHandler(c *gin.Context) {
+	boardID, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
+		return
+	}
+
+	_, err = app.store.Boards.GetByID(c.Request.Context(), boardID)
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	nStr := c.Query("n")
+	n, err := strconv.Atoi(nStr)
+	if err != nil || n <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n"})
+		return
+	}
+
+	scores, err := app.store.Scores.GetTopScores(c.Request.Context(), boardID, n)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if scores == nil {
+		scores = []domain.TopScoreEntry{}
+	}
+
+	c.JSON(http.StatusOK, scores)
+}
+
 func (app *application) setScoreHandler(c *gin.Context) {
 	boardID, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
 	if err != nil {

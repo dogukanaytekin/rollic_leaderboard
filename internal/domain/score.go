@@ -8,3 +8,8 @@ type Score struct {
 	Score    int64
 	ScoredAt time.Time
 }
+
+type TopScoreEntry struct {
+	UserID string `json:"userId"`
+	Score  int64  `json:"score"`
+}

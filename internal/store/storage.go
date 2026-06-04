@@ -33,4 +33,5 @@ type BoardRepository interface {
 
 type ScoreRepository interface {
 	Upsert(ctx context.Context, score domain.Score) (domain.Score, error)
+	GetTopScores(ctx context.Context, boardID int64, n int) ([]domain.TopScoreEntry, error)
 }
