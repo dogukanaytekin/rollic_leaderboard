@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -29,7 +30,7 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 		return
 	}
 
-	_, err = app.store.Boards.GetByID(c.Request.Context(), boardID)
+	board, err := app.store.Boards.GetByID(c.Request.Context(), boardID)
 	if errors.Is(err, store.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
 		return
@@ -46,7 +47,12 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 		return
 	}
 
-	scores, err := app.store.Scores.GetTopScores(c.Request.Context(), boardID, n)
+	var periodStart time.Time
+	if board.Schedule != nil {
+		periodStart = calcPeriodStart(board.CreatedAt, board.Schedule.IntervalSeconds, time.Now())
+	}
+
+	scores, err := app.store.Scores.GetTopScores(c.Request.Context(), boardID, periodStart, n)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -57,6 +63,50 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, scores)
+}
+
+func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
+	boardID, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Board or user not found"})
+		return
+	}
+
+	board, err := app.store.Boards.GetByID(c.Request.Context(), boardID)
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Board or user not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := c.Param("userId")
+
+	nStr := c.Query("n")
+	n, err := strconv.Atoi(nStr)
+	if err != nil || n <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n"})
+		return
+	}
+
+	var periodStart time.Time
+	if board.Schedule != nil {
+		periodStart = calcPeriodStart(board.CreatedAt, board.Schedule.IntervalSeconds, time.Now())
+	}
+
+	surroundings, err := app.store.Scores.GetSurroundings(c.Request.Context(), boardID, userID, periodStart, n)
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Board or user not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, surroundings)
 }
 
 func (app *application) setScoreHandler(c *gin.Context) {

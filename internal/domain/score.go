@@ -13,3 +13,9 @@ type TopScoreEntry struct {
 	UserID string `json:"userId"`
 	Score  int64  `json:"score"`
 }
+
+type Surroundings struct {
+	User  TopScoreEntry   `json:"user"`
+	Above []TopScoreEntry `json:"above"`
+	Below []TopScoreEntry `json:"below"`
+}

@@ -30,6 +30,7 @@ func (app *application) mount() *gin.Engine {
 	r.GET("/boards/:boardId", app.getBoardHandler)
 	r.POST("/boards/:boardId/scores", app.setScoreHandler)
 	r.GET("/boards/:boardId/scores", app.getTopScoresHandler)
+	r.GET("/boards/:boardId/scores/:userId/surroundings", app.getScoreSurroundingsHandler)
 
 	return r
 }

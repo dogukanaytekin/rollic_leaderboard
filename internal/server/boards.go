@@ -39,11 +39,15 @@ type getBoardResponse struct {
 	NextResetAt *time.Time       `json:"nextResetAt,omitempty"`
 }
 
-func calcNextResetAt(createdAt time.Time, intervalSeconds int64) time.Time {
+func calcPeriodStart(createdAt time.Time, intervalSeconds int64, now time.Time) time.Time {
 	interval := time.Duration(intervalSeconds) * time.Second
-	elapsed := time.Since(createdAt)
-	n := int64(elapsed/interval) + 1
+	elapsed := now.Sub(createdAt)
+	n := int64(elapsed / interval)
 	return createdAt.Add(time.Duration(n) * interval)
+}
+
+func calcNextResetAt(createdAt time.Time, intervalSeconds int64, now time.Time) time.Time {
+	return calcPeriodStart(createdAt, intervalSeconds, now).Add(time.Duration(intervalSeconds) * time.Second)
 }
 
 func (app *application) getBoardHandler(c *gin.Context) {
@@ -72,7 +76,7 @@ func (app *application) getBoardHandler(c *gin.Context) {
 	}
 
 	if board.Schedule != nil {
-		t := calcNextResetAt(board.CreatedAt, board.Schedule.IntervalSeconds)
+		t := calcNextResetAt(board.CreatedAt, board.Schedule.IntervalSeconds, time.Now())
 		resp.NextResetAt = &t
 	}
 
