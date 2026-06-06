@@ -5,3 +5,5 @@ plans/Todo.md
 plans/decisions.md
 plans/docker.md
 plans/background_worker.md
+plans/redis_scored_set.md
+plans/redis_new_repo_plan.md

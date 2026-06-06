@@ -75,112 +75,22 @@ Both variables are **required** — the service fails fast with a clear error if
 
 Base URL: `http://localhost:8081`
 
-### Create Board
-`POST /boards`
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/boards` | Create a board (optional `interval` schedule) |
+| `GET`  | `/boards` | List all boards |
+| `GET`  | `/boards/{boardId}` | Board details, including `nextResetAt` if scheduled |
+| `POST` | `/boards/{boardId}/scores` | Set/overwrite a user's score |
+| `GET`  | `/boards/{boardId}/scores?n=10` | Top `n` scores |
+| `GET`  | `/boards/{boardId}/scores/{userId}/surroundings?n=5` | A user's score with the `n` above and below |
+| `POST` | `/boards/{boardId}/populate?n=100` | Fill a board with `n` mock users (testing helper) |
+| `GET`  | `/health` | Liveness check |
 
-```json
-{
-  "name": "Weekly Tournament",
-  "description": "Global leaderboard for weekly tournament",
-  "schedule": { "type": "interval", "intervalSeconds": 604800 }
-}
-```
-`schedule` is optional. If provided, `type` must be `"interval"` and `intervalSeconds > 0`.
+Request/response payloads follow the case-study specification. A few behavioural notes:
 
-**201 Created**
-```json
-{
-  "boardId": 1,
-  "name": "Weekly Tournament",
-  "description": "Global leaderboard for weekly tournament",
-  "schedule": { "type": "interval", "intervalSeconds": 604800 }
-}
-```
-
-### List Boards
-`GET /boards`
-
-**200 OK**
-```json
-[
-  { "boardId": 1, "name": "Weekly Tournament" },
-  { "boardId": 2, "name": "All-time Top Scores" }
-]
-```
-
-### Get Board
-`GET /boards/{boardId}`
-
-Returns board details including the next scheduled reset (if any).
-
-**200 OK**
-```json
-{
-  "boardId": 1,
-  "name": "Weekly Tournament",
-  "description": "Global leaderboard for weekly tournament",
-  "createdAt": "2026-01-01T12:00:00Z",
-  "schedule": { "type": "interval", "intervalSeconds": 604800 },
-  "nextResetAt": "2026-01-08T12:00:00Z"
-}
-```
-**404** if the board does not exist.
-
-### Set Score
-`POST /boards/{boardId}/scores`
-
-```json
-{ "userId": "user_789", "score": 1500 }
-```
-Each call **overwrites** the user's previous score (not incremental).
-
-**200 OK**
-```json
-{ "boardId": 1, "userId": "user_789", "score": 1500 }
-```
-**404** if the board does not exist.
-
-### Get Top Scores
-`GET /boards/{boardId}/scores?n=10`
-
-Returns the top `n` users ranked by score (descending; ties broken by earliest to reach the score).
-
-**200 OK**
-```json
-[
-  { "userId": "user_1", "score": 5000 },
-  { "userId": "user_789", "score": 1500 }
-]
-```
-**400** if `n` is missing or not a positive integer. **404** if the board does not exist.
-
-### Get Score Surroundings
-`GET /boards/{boardId}/scores/{userId}/surroundings?n=5`
-
-Returns the user's score along with the `n` users immediately above and below them.
-
-**200 OK**
-```json
-{
-  "user":  { "userId": "user_789", "score": 1500 },
-  "above": [ { "userId": "user_above_1", "score": 1510 } ],
-  "below": [ { "userId": "user_below_1", "score": 1490 } ]
-}
-```
-**400** if `n` is invalid. **404** if the board or user is not found.
-
-### Populate (testing helper)
-`POST /boards/{boardId}/populate?n=100`
-
-Fills a board with `n` mock users (`mock_user_1` … `mock_user_n`) with random scores.
-
-**200 OK**
-```json
-{ "boardId": 1, "populated": 100 }
-```
-
-### Health
-`GET /health` → `{ "status": "ok" }`
+- **Set Score** overwrites the previous score (not incremental); ranking is descending, ties broken by who reached the score first.
+- **`n`** must be a positive integer (otherwise `400`).
+- Missing boards/users return `404`.
 
 ## Project Structure
 
@@ -219,3 +129,17 @@ The suite covers all HTTP handlers (happy paths, validation, 404/500 cases) and 
 ## Database Schema
 
 Two tables: `boards` (with a check constraint enforcing valid schedules) and `scores` (with a `UNIQUE (board_id, user_id)` constraint enabling upserts, and the composite ranking index). See `migrations/` for the full schema.
+
+## Future Improvements
+
+**Redis sorted sets as a leaderboard backend.** Real-time game leaderboards are often built on Redis sorted sets (ZSET) rather than a relational store. I evaluated this approach first, but chose PostgreSQL to stay aligned with the spec's explicit requirements — **persistence** as the source of truth and a proper **index** for ranking — without depending on a cache layer's durability settings. With a deliberate design, Redis ZSETs would be a strong addition:
+
+- **O(log N) everywhere.** `ZADD` (set score), `ZREVRANGE` (top-N), and `ZREVRANK` (a user's rank) are all logarithmic, and rank — which we currently don't expose cheaply — comes essentially for free.
+- **Periodic resets via key + TTL.** Modelling each period as its own key (`board:{id}:period:{periodStart}`) makes a reset just a switch to a new key, with the old one expiring automatically via TTL — replacing the background cleaner entirely.
+- **Naturally sorted.** The data structure keeps members ranked by score at all times, so reads never sort.
+
+The migration would be low-risk thanks to the **repository pattern** already in place: scores live behind the `ScoreRepository` interface, so a `RedisScoreRepository` could be added as a second implementation and selected via configuration — without touching handlers, routing, middleware, or response types. Board metadata would remain in PostgreSQL.
+
+The main subtlety to design around is **tie-breaking**: the spec ranks earlier-achieved scores higher, but a ZSET orders equal scores lexicographically by member. This requires either encoding score+timestamp into the ZSET score (bounded by float64's 53-bit precision) or into the member key — a trade-off worth making explicit before implementing.
+
+A production-grade evolution would keep PostgreSQL as the durable source of truth with Redis as a write-through read layer, combining durability with Redis's read performance.
