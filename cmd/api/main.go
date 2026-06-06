@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"rollic-leaderboard/internal/config"
 	"rollic-leaderboard/internal/db"
 	"rollic-leaderboard/internal/server"
 	"rollic-leaderboard/internal/store"
+	"rollic-leaderboard/internal/worker"
 
 	"github.com/joho/godotenv"
 )
@@ -21,6 +23,8 @@ func main() {
 		log.Fatalf("db connection failed: %v", err)
 	}
 	defer database.Close()
+
+	worker.StartCleaner(database, 2*time.Hour)
 
 	storage := store.NewStorage(database)
 

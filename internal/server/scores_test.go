@@ -81,6 +81,17 @@ func TestSetScoreHandler(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:        "doğru boardID repository'e geçiliyor",
+			path:        "/boards/42/scores",
+			body:        `{"userId":"user_A","score":100}`,
+			mockGetByID: func(_ context.Context, id int64) (domain.Board, error) { return domain.Board{ID: 42}, nil },
+			mockUpsert: func(_ context.Context, s domain.Score) (domain.Score, error) {
+				assert.Equal(t, int64(42), s.BoardID, "upsert'e yanlış boardID geçildi")
+				return s, nil
+			},
+			wantStatus: http.StatusOK,
+		},
 	}
 
 	for _, tt := range tests {
@@ -140,7 +151,7 @@ func TestGetTopScoresHandler(t *testing.T) {
 				}, nil
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   `"user_A"`,
+			wantBody:   `[{"userId":"user_A","score":5000},{"userId":"user_B","score":3000}]`,
 		},
 		{
 			name:        "board boş → [] döner (null değil)",
