@@ -9,7 +9,10 @@ import (
 	"rollic-leaderboard/internal/domain"
 )
 
-const QueryTimeoutDuration = 5 * time.Second
+const (
+	QueryTimeoutDuration = 5 * time.Second
+	BulkTimeoutDuration  = 5 * time.Minute
+)
 
 var ErrNotFound = errors.New("not found")
 

@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Config struct {
 	Port string
@@ -11,11 +14,19 @@ type DBConfig struct {
 	Addr string
 }
 
-func Load() *Config {
-	return &Config{
-		Port: os.Getenv("PORT"),
-		DB: DBConfig{
-			Addr: os.Getenv("DB_ADDR"),
-		},
+func Load() (*Config, error) {
+	port := os.Getenv("PORT")
+	if port == "" {
+		return nil, fmt.Errorf("PORT is required")
 	}
+
+	dbAddr := os.Getenv("DB_ADDR")
+	if dbAddr == "" {
+		return nil, fmt.Errorf("DB_ADDR is required")
+	}
+
+	return &Config{
+		Port: port,
+		DB:   DBConfig{Addr: dbAddr},
+	}, nil
 }

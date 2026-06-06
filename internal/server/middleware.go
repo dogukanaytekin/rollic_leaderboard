@@ -23,7 +23,7 @@ func (app *application) boardMiddleware(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 

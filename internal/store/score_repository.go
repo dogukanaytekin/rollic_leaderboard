@@ -75,7 +75,7 @@ func (r *PostgresScoreRepository) GetTopScores(ctx context.Context, boardID int6
 const cleanerBatchSize = 10_000
 
 func (r *PostgresScoreRepository) Populate(ctx context.Context, boardID int64, n int) error {
-	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, BulkTimeoutDuration)
 	defer cancel()
 
 	tx, err := r.db.BeginTx(ctx, nil)

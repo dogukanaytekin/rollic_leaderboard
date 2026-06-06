@@ -16,7 +16,10 @@ import (
 func main() {
 	godotenv.Load()
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config error: %v", err)
+	}
 
 	database, err := db.New(cfg.DB.Addr)
 	if err != nil {

@@ -40,7 +40,7 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 
 	scores, err := app.store.Scores.GetTopScores(c.Request.Context(), board.ID, periodStart, n)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (app *application) setScoreHandler(c *gin.Context) {
 		Score:   req.Score,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 

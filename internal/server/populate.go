@@ -25,7 +25,7 @@ func (app *application) populateBoardHandler(c *gin.Context) {
 	}
 
 	if err := app.store.Scores.Populate(c.Request.Context(), board.ID, n); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 

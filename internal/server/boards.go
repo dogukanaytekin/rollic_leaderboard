@@ -69,7 +69,7 @@ func (app *application) getBoardHandler(c *gin.Context) {
 func (app *application) listBoardsHandler(c *gin.Context) {
 	boards, err := app.store.Boards.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 
@@ -106,7 +106,7 @@ func (app *application) createBoardHandler(c *gin.Context) {
 		Schedule:    req.Schedule,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		serverError(c, err)
 		return
 	}
 
