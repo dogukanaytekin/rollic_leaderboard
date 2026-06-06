@@ -12,9 +12,7 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("error loading .env file")
-	}
+	godotenv.Load() // optional: env vars can be set directly in production
 
 	cfg := config.Load()
 

@@ -9,6 +9,34 @@ services:
       - "3435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rollic -d leaderboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://rollic:rollic@postgres:5432/leaderboard?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: 8081
+      DB_ADDR: postgres://rollic:rollic@postgres:5432/leaderboard?sslmode=disable
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:
