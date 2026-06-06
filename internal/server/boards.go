@@ -1,15 +1,12 @@
 package server
 
 import (
-	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"rollic-leaderboard/internal/domain"
-	"rollic-leaderboard/internal/store"
 )
 
 type createBoardRequest struct {
@@ -51,21 +48,7 @@ func calcNextResetAt(createdAt time.Time, intervalSeconds int64, now time.Time) 
 }
 
 func (app *application) getBoardHandler(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
-		return
-	}
-
-	board, err := app.store.Boards.GetByID(c.Request.Context(), id)
-	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	board := c.MustGet("board").(domain.Board)
 
 	resp := getBoardResponse{
 		BoardID:     board.ID,

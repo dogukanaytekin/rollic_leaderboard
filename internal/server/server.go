@@ -25,12 +25,19 @@ func (app *application) mount() *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	r.GET("/boards", app.listBoardsHandler)
-	r.POST("/boards", app.createBoardHandler)
-	r.GET("/boards/:boardId", app.getBoardHandler)
-	r.POST("/boards/:boardId/scores", app.setScoreHandler)
-	r.GET("/boards/:boardId/scores", app.getTopScoresHandler)
-	r.GET("/boards/:boardId/scores/:userId/surroundings", app.getScoreSurroundingsHandler)
+	boards := r.Group("/boards")
+	{
+		boards.GET("", app.listBoardsHandler)
+		boards.POST("", app.createBoardHandler)
+
+		board := boards.Group("/:boardId", app.boardMiddleware)
+		{
+			board.GET("", app.getBoardHandler)
+			board.POST("/scores", app.setScoreHandler)
+			board.GET("/scores", app.getTopScoresHandler)
+			board.GET("/scores/:userId/surroundings", app.getScoreSurroundingsHandler)
+		}
+	}
 
 	return r
 }

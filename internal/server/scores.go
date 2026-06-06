@@ -24,21 +24,7 @@ type setScoreResponse struct {
 }
 
 func (app *application) getTopScoresHandler(c *gin.Context) {
-	boardID, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
-		return
-	}
-
-	board, err := app.store.Boards.GetByID(c.Request.Context(), boardID)
-	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	board := c.MustGet("board").(domain.Board)
 
 	nStr := c.Query("n")
 	n, err := strconv.Atoi(nStr)
@@ -52,7 +38,7 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 		periodStart = calcPeriodStart(board.CreatedAt, board.Schedule.IntervalSeconds, time.Now())
 	}
 
-	scores, err := app.store.Scores.GetTopScores(c.Request.Context(), boardID, periodStart, n)
+	scores, err := app.store.Scores.GetTopScores(c.Request.Context(), board.ID, periodStart, n)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -66,22 +52,7 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 }
 
 func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
-	boardID, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board or user not found"})
-		return
-	}
-
-	board, err := app.store.Boards.GetByID(c.Request.Context(), boardID)
-	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board or user not found"})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
+	board := c.MustGet("board").(domain.Board)
 	userID := c.Param("userId")
 
 	nStr := c.Query("n")
@@ -96,7 +67,7 @@ func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
 		periodStart = calcPeriodStart(board.CreatedAt, board.Schedule.IntervalSeconds, time.Now())
 	}
 
-	surroundings, err := app.store.Scores.GetSurroundings(c.Request.Context(), boardID, userID, periodStart, n)
+	surroundings, err := app.store.Scores.GetSurroundings(c.Request.Context(), board.ID, userID, periodStart, n)
 	if errors.Is(err, store.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Board or user not found"})
 		return
@@ -110,21 +81,7 @@ func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
 }
 
 func (app *application) setScoreHandler(c *gin.Context) {
-	boardID, err := strconv.ParseInt(c.Param("boardId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
-		return
-	}
-
-	_, err = app.store.Boards.GetByID(c.Request.Context(), boardID)
-	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Board not found"})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	board := c.MustGet("board").(domain.Board)
 
 	var req setScoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -133,7 +90,7 @@ func (app *application) setScoreHandler(c *gin.Context) {
 	}
 
 	score, err := app.store.Scores.Upsert(c.Request.Context(), domain.Score{
-		BoardID: boardID,
+		BoardID: board.ID,
 		UserID:  req.UserID,
 		Score:   req.Score,
 	})
