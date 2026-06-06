@@ -18,6 +18,18 @@ A REST API for managing leaderboards and tracking user scores, written in Go. Ea
 - **golang-migrate** for schema migrations
 - **Docker / Docker Compose** for local orchestration
 
+## Design Notes
+
+**Why PostgreSQL over Redis sorted sets.** Real-time game leaderboards are very often built on **Redis sorted sets (ZSET)**, and that was my first instinct here too — `ZADD`/`ZREVRANGE`/`ZREVRANK` are all O(log N), a user's rank comes essentially for free, and modelling each period as its own key (`board:{id}:period:{periodStart}`) makes resets a key switch with the old data expiring via **TTL**, removing the need for a cleanup job entirely. I deliberately chose PostgreSQL instead to meet the spec's explicit requirements — **persistence** as the durable source of truth and a real **index** for ranking — rather than leaning on a cache layer's durability settings. Crucially, the **repository pattern** keeps this open: scores sit behind the `ScoreRepository` interface, so a `RedisScoreRepository` could be dropped in as a second implementation and selected by config, without touching handlers, routing, or middleware. The one subtlety to design for is tie-breaking — a ZSET orders equal scores lexicographically by member, so "earlier score ranks higher" requires encoding score+timestamp into the ZSET score (within float64's 53-bit precision) or into the member key. A production evolution would keep PostgreSQL as the source of truth with Redis as a write-through read layer.
+
+**Period reset (lazy filter + background cleaner).** Instead of deleting scores at the exact reset moment (which would require a fragile, restart-sensitive scheduler), every read query filters by `scored_at >= periodStart`, where `periodStart` is derived from the board's `created_at` and `interval`. This guarantees correctness at all times. A background goroutine then physically deletes stale rows every 2 hours purely as housekeeping — if it runs late, nothing breaks.
+
+**Indexing.** A single composite index `(board_id, score DESC, scored_at ASC)` serves the hot paths. Top-scores reads walk it directly with no sort step; surroundings queries seek to the user's score and read neighbours via forward/backward index scans, avoiding `OFFSET` and window-function full-partition scans.
+
+**Tie-breaking.** Equal scores are ordered by `scored_at` ascending — the user who reached the score first ranks higher.
+
+**Error handling.** Internal errors are logged server-side and returned to clients as a generic `Internal server error`, so database details never leak. Domain errors (400/404) carry meaningful, spec-defined messages.
+
 ## Quick Start (Docker)
 
 The fastest way to run everything — Postgres, migrations, and the API — with a single command:
@@ -108,16 +120,6 @@ migrations/         # SQL schema migrations
 
 The layering is **handler → store (repository) → database**. Repositories are defined as interfaces, so handlers and the worker are unit-tested against mocks with no database dependency.
 
-## Design Notes
-
-**Period reset (lazy filter + background cleaner).** Instead of deleting scores at the exact reset moment (which would require a fragile, restart-sensitive scheduler), every read query filters by `scored_at >= periodStart`, where `periodStart` is derived from the board's `created_at` and `interval`. This guarantees correctness at all times. A background goroutine then physically deletes stale rows every 2 hours purely as housekeeping — if it runs late, nothing breaks.
-
-**Indexing.** A single composite index `(board_id, score DESC, scored_at ASC)` serves the hot paths. Top-scores reads walk it directly with no sort step; surroundings queries seek to the user's score and read neighbours via forward/backward index scans, avoiding `OFFSET` and window-function full-partition scans.
-
-**Tie-breaking.** Equal scores are ordered by `scored_at` ascending — the user who reached the score first ranks higher.
-
-**Error handling.** Internal errors are logged server-side and returned to clients as a generic `Internal server error`, so database details never leak. Domain errors (400/404) carry meaningful, spec-defined messages.
-
 ## Testing
 
 ```bash
@@ -129,17 +131,3 @@ The suite covers all HTTP handlers (happy paths, validation, 404/500 cases) and 
 ## Database Schema
 
 Two tables: `boards` (with a check constraint enforcing valid schedules) and `scores` (with a `UNIQUE (board_id, user_id)` constraint enabling upserts, and the composite ranking index). See `migrations/` for the full schema.
-
-## Future Improvements
-
-**Redis sorted sets as a leaderboard backend.** Real-time game leaderboards are often built on Redis sorted sets (ZSET) rather than a relational store. I evaluated this approach first, but chose PostgreSQL to stay aligned with the spec's explicit requirements — **persistence** as the source of truth and a proper **index** for ranking — without depending on a cache layer's durability settings. With a deliberate design, Redis ZSETs would be a strong addition:
-
-- **O(log N) everywhere.** `ZADD` (set score), `ZREVRANGE` (top-N), and `ZREVRANK` (a user's rank) are all logarithmic, and rank — which we currently don't expose cheaply — comes essentially for free.
-- **Periodic resets via key + TTL.** Modelling each period as its own key (`board:{id}:period:{periodStart}`) makes a reset just a switch to a new key, with the old one expiring automatically via TTL — replacing the background cleaner entirely.
-- **Naturally sorted.** The data structure keeps members ranked by score at all times, so reads never sort.
-
-The migration would be low-risk thanks to the **repository pattern** already in place: scores live behind the `ScoreRepository` interface, so a `RedisScoreRepository` could be added as a second implementation and selected via configuration — without touching handlers, routing, middleware, or response types. Board metadata would remain in PostgreSQL.
-
-The main subtlety to design around is **tie-breaking**: the spec ranks earlier-achieved scores higher, but a ZSET orders equal scores lexicographically by member. This requires either encoding score+timestamp into the ZSET score (bounded by float64's 53-bit precision) or into the member key — a trade-off worth making explicit before implementing.
-
-A production-grade evolution would keep PostgreSQL as the durable source of truth with Redis as a write-through read layer, combining durability with Redis's read performance.
