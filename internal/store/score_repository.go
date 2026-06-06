@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"math/rand"
 	"time"
 
 	"rollic-leaderboard/internal/domain"
@@ -71,6 +73,37 @@ func (r *PostgresScoreRepository) GetTopScores(ctx context.Context, boardID int6
 }
 
 const cleanerBatchSize = 10_000
+
+func (r *PostgresScoreRepository) Populate(ctx context.Context, boardID int64, n int) error {
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO scores (board_id, user_id, score)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (board_id, user_id) DO UPDATE SET score = EXCLUDED.score, scored_at = now()
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for i := 1; i <= n; i++ {
+		userID := fmt.Sprintf("mock_user_%d", i)
+		score := rand.Int63n(1_000_000)
+		if _, err := stmt.ExecContext(ctx, boardID, userID, score); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
 
 func (r *PostgresScoreRepository) DeleteOldScores(ctx context.Context, boardID int64, periodStart time.Time) error {
 	for {

@@ -36,6 +36,7 @@ func (app *application) mount() *gin.Engine {
 			board.POST("/scores", app.setScoreHandler)
 			board.GET("/scores", app.getTopScoresHandler)
 			board.GET("/scores/:userId/surroundings", app.getScoreSurroundingsHandler)
+			board.POST("/populate", app.populateBoardHandler)
 		}
 	}
 

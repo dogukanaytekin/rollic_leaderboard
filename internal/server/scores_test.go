@@ -14,8 +14,6 @@ import (
 	"rollic-leaderboard/internal/store"
 )
 
-// ---- Set Score ----
-
 func TestSetScoreHandler(t *testing.T) {
 	board := fixedBoard(1, false)
 
@@ -133,8 +131,6 @@ func TestSetScoreHandler(t *testing.T) {
 		})
 	}
 }
-
-// ---- Get Top Scores ----
 
 func TestGetTopScoresHandler(t *testing.T) {
 	board := fixedBoard(1, false)
@@ -281,8 +277,6 @@ func TestGetTopScoresHandler(t *testing.T) {
 		})
 	}
 }
-
-// ---- Get Score Surroundings ----
 
 func TestGetScoreSurroundingsHandler(t *testing.T) {
 	board := fixedBoard(1, false)

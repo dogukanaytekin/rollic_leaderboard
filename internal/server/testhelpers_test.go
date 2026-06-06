@@ -13,8 +13,6 @@ import (
 	"rollic-leaderboard/internal/store"
 )
 
-// --- mock repos ---
-
 type mockBoardRepo struct {
 	createFn  func(context.Context, domain.Board) (domain.Board, error)
 	listFn    func(context.Context) ([]domain.Board, error)
@@ -52,8 +50,9 @@ func (m *mockScoreRepo) GetSurroundings(ctx context.Context, boardID int64, user
 func (m *mockScoreRepo) DeleteOldScores(ctx context.Context, boardID int64, periodStart time.Time) error {
 	return nil
 }
-
-// --- helpers ---
+func (m *mockScoreRepo) Populate(ctx context.Context, boardID int64, n int) error {
+	return nil
+}
 
 func newTestApp(boards store.BoardRepository, scores store.ScoreRepository) *application {
 	return &application{
@@ -76,7 +75,6 @@ func doRequest(app *application, method, path, body string) *httptest.ResponseRe
 	return w
 }
 
-// fixedBoard returns a board with predictable fields for assertions.
 func fixedBoard(id int64, withSchedule bool) domain.Board {
 	b := domain.Board{
 		ID:          id,

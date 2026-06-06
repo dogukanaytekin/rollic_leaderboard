@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	godotenv.Load() // optional: env vars can be set directly in production
+	godotenv.Load()
 
 	cfg := config.Load()
 

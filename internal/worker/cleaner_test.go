@@ -17,8 +17,6 @@ var fixedNow = time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
 
 const weekSeconds = int64(604800)
 
-// --- mock repos ---
-
 type mockBoardRepo struct {
 	getScheduledBoardsFn func(context.Context) ([]domain.Board, error)
 }
@@ -50,12 +48,11 @@ func (m *mockScoreRepo) GetSurroundings(_ context.Context, _ int64, _ string, _ 
 func (m *mockScoreRepo) DeleteOldScores(ctx context.Context, boardID int64, periodStart time.Time) error {
 	return m.deleteOldScoresFn(ctx, boardID, periodStart)
 }
+func (m *mockScoreRepo) Populate(_ context.Context, _ int64, _ int) error { return nil }
 
 func newStorage(boards store.BoardRepository, scores store.ScoreRepository) store.Storage {
 	return store.Storage{Boards: boards, Scores: scores}
 }
-
-// --- testler ---
 
 func TestRunCleanupAt_NoScheduledBoards(t *testing.T) {
 	s := newStorage(
@@ -73,7 +70,7 @@ func TestRunCleanupAt_NoScheduledBoards(t *testing.T) {
 }
 
 func TestRunCleanupAt_BoardInFirstPeriod_NothingDeleted(t *testing.T) {
-	// 3 gün önce oluşturuldu, 7 günlük interval → periodStart = createdAt
+
 	createdAt := fixedNow.Add(-3 * 24 * time.Hour)
 	board := domain.Board{
 		ID:        1,
@@ -97,7 +94,7 @@ func TestRunCleanupAt_BoardInFirstPeriod_NothingDeleted(t *testing.T) {
 }
 
 func TestRunCleanupAt_BoardInSecondPeriod_CorrectPeriodStart(t *testing.T) {
-	// 10 gün önce, 7 günlük → dump=1 → periodStart = createdAt + 7 gün
+
 	createdAt := fixedNow.Add(-10 * 24 * time.Hour)
 	expectedPeriodStart := createdAt.Add(time.Duration(weekSeconds) * time.Second)
 
@@ -123,7 +120,7 @@ func TestRunCleanupAt_BoardInSecondPeriod_CorrectPeriodStart(t *testing.T) {
 }
 
 func TestRunCleanupAt_ThirdPeriod_CorrectPeriodStart(t *testing.T) {
-	// 20 gün önce, 7 günlük → dump=2 → periodStart = createdAt + 14 gün
+
 	createdAt := fixedNow.Add(-20 * 24 * time.Hour)
 	expectedPeriodStart := createdAt.Add(2 * time.Duration(weekSeconds) * time.Second)
 
@@ -149,7 +146,7 @@ func TestRunCleanupAt_ThirdPeriod_CorrectPeriodStart(t *testing.T) {
 }
 
 func TestRunCleanupAt_PeriodBoundary_ExactlyAtInterval(t *testing.T) {
-	// Tam 7 gün önce → dump=1 → periodStart = createdAt + 7 gün = fixedNow
+
 	createdAt := fixedNow.Add(-time.Duration(weekSeconds) * time.Second)
 	expectedPeriodStart := fixedNow
 
@@ -175,8 +172,8 @@ func TestRunCleanupAt_PeriodBoundary_ExactlyAtInterval(t *testing.T) {
 }
 
 func TestRunCleanupAt_MultipleBoards_EachGetsCorrectPeriodStart(t *testing.T) {
-	createdAt1 := fixedNow.Add(-10 * 24 * time.Hour) // 2. periyot
-	createdAt2 := fixedNow.Add(-20 * 24 * time.Hour) // 3. periyot
+	createdAt1 := fixedNow.Add(-10 * 24 * time.Hour)
+	createdAt2 := fixedNow.Add(-20 * 24 * time.Hour)
 
 	expectedPS1 := createdAt1.Add(time.Duration(weekSeconds) * time.Second)
 	expectedPS2 := createdAt2.Add(2 * time.Duration(weekSeconds) * time.Second)
@@ -206,8 +203,8 @@ func TestRunCleanupAt_DifferentIntervals(t *testing.T) {
 	dailyInterval := int64(86400)
 	monthlyInterval := int64(2592000)
 
-	createdAt1 := fixedNow.Add(-3 * 24 * time.Hour)  // günlük → 3. periyot
-	createdAt2 := fixedNow.Add(-45 * 24 * time.Hour) // aylık → 2. periyot
+	createdAt1 := fixedNow.Add(-3 * 24 * time.Hour)
+	createdAt2 := fixedNow.Add(-45 * 24 * time.Hour)
 	expectedPS1 := createdAt1.Add(3 * time.Duration(dailyInterval) * time.Second)
 	expectedPS2 := createdAt2.Add(time.Duration(monthlyInterval) * time.Second)
 
@@ -267,7 +264,6 @@ func TestRunCleanupAt_DeleteError_LogsAndContinues(t *testing.T) {
 		}},
 	)
 
-	// RunCleanup nil döner — board bazlı hata tüm cleanup'ı durdurmaz
 	err := runCleanupAt(s, fixedNow)
 	assert.NoError(t, err)
 	assert.Equal(t, []int64{2}, deletedBoards, "board 2 hata olsa da temizlenmeli")

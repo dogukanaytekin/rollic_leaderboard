@@ -14,8 +14,6 @@ import (
 	"rollic-leaderboard/internal/store"
 )
 
-// ---- Create Board ----
-
 func TestCreateBoardHandler(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -110,8 +108,6 @@ func TestCreateBoardHandler(t *testing.T) {
 	}
 }
 
-// ---- List Boards ----
-
 func TestListBoardsHandler(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -172,8 +168,6 @@ func TestListBoardsHandler(t *testing.T) {
 		})
 	}
 }
-
-// ---- Get Board ----
 
 func TestGetBoardHandler(t *testing.T) {
 	createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
