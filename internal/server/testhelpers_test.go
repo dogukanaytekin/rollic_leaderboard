@@ -30,6 +30,9 @@ func (m *mockBoardRepo) List(ctx context.Context) ([]domain.Board, error) {
 func (m *mockBoardRepo) GetByID(ctx context.Context, id int64) (domain.Board, error) {
 	return m.getByIDFn(ctx, id)
 }
+func (m *mockBoardRepo) GetScheduledBoards(ctx context.Context) ([]domain.Board, error) {
+	return []domain.Board{}, nil
+}
 
 type mockScoreRepo struct {
 	upsertFn          func(context.Context, domain.Score) (domain.Score, error)
@@ -45,6 +48,9 @@ func (m *mockScoreRepo) GetTopScores(ctx context.Context, boardID int64, periodS
 }
 func (m *mockScoreRepo) GetSurroundings(ctx context.Context, boardID int64, userID string, periodStart time.Time, n int) (domain.Surroundings, error) {
 	return m.getSurroundingsFn(ctx, boardID, userID, periodStart, n)
+}
+func (m *mockScoreRepo) DeleteOldScores(ctx context.Context, boardID int64, periodStart time.Time) error {
+	return nil
 }
 
 // --- helpers ---

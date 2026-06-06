@@ -24,9 +24,9 @@ func main() {
 	}
 	defer database.Close()
 
-	worker.StartCleaner(database, 2*time.Hour)
-
 	storage := store.NewStorage(database)
+
+	worker.StartCleaner(storage, 2*time.Hour)
 
 	app := server.New(cfg, storage)
 

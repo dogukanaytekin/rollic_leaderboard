@@ -70,6 +70,34 @@ func (r *PostgresScoreRepository) GetTopScores(ctx context.Context, boardID int6
 	return scores, nil
 }
 
+const cleanerBatchSize = 10_000
+
+func (r *PostgresScoreRepository) DeleteOldScores(ctx context.Context, boardID int64, periodStart time.Time) error {
+	for {
+		res, err := r.db.ExecContext(ctx, `
+			DELETE FROM scores
+			WHERE id IN (
+				SELECT id FROM scores
+				WHERE board_id = $1 AND scored_at < $2
+				LIMIT $3
+			)
+		`, boardID, periodStart, cleanerBatchSize)
+		if err != nil {
+			return err
+		}
+
+		deleted, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if deleted < int64(cleanerBatchSize) {
+			break
+		}
+	}
+	return nil
+}
+
 func (r *PostgresScoreRepository) GetSurroundings(ctx context.Context, boardID int64, userID string, periodStart time.Time, n int) (domain.Surroundings, error) {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()

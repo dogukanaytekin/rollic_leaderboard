@@ -102,3 +102,37 @@ func (r *PostgresBoardRepository) GetByID(ctx context.Context, id int64) (domain
 
 	return b, nil
 }
+
+func (r *PostgresBoardRepository) GetScheduledBoards(ctx context.Context) ([]domain.Board, error) {
+	query := `
+		SELECT id, created_at, interval_seconds
+		FROM boards
+		WHERE interval_seconds IS NOT NULL
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var boards []domain.Board
+	for rows.Next() {
+		var b domain.Board
+		var intervalSeconds sql.NullInt64
+		if err := rows.Scan(&b.ID, &b.CreatedAt, &intervalSeconds); err != nil {
+			return nil, err
+		}
+		if intervalSeconds.Valid {
+			b.Schedule = &domain.Schedule{
+				Type:            "interval",
+				IntervalSeconds: intervalSeconds.Int64,
+			}
+		}
+		boards = append(boards, b)
+	}
+	return boards, rows.Err()
+}
