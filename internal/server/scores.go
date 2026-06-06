@@ -89,6 +89,11 @@ func (app *application) setScoreHandler(c *gin.Context) {
 		return
 	}
 
+	if req.UserID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user id"})
+		return
+	}
+
 	score, err := app.store.Scores.Upsert(c.Request.Context(), domain.Score{
 		BoardID: board.ID,
 		UserID:  req.UserID,

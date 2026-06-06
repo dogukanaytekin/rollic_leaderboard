@@ -82,6 +82,14 @@ func TestSetScoreHandler(t *testing.T) {
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
+			name:        "boş userId → 400",
+			path:        "/boards/1/scores",
+			body:        `{"userId":"","score":100}`,
+			mockGetByID: func(_ context.Context, id int64) (domain.Board, error) { return board, nil },
+			wantStatus:  http.StatusBadRequest,
+			wantFields:  []string{`"error"`},
+		},
+		{
 			name:        "doğru boardID repository'e geçiliyor",
 			path:        "/boards/42/scores",
 			body:        `{"userId":"user_A","score":100}`,
