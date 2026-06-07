@@ -25,6 +25,9 @@ func (app *application) mount() *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	r.GET("/docs", app.docsHandler)
+	r.GET("/openapi.yaml", app.openapiHandler)
+
 	boards := r.Group("/boards")
 	{
 		boards.GET("", app.listBoardsHandler)

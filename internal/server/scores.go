@@ -12,8 +12,6 @@ import (
 	"rollic-leaderboard/internal/store"
 )
 
-const maxN = 1000
-
 type setScoreRequest struct {
 	UserID string `json:"userId"`
 	Score  int64  `json:"score"`
@@ -30,8 +28,8 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 
 	nStr := c.Query("n")
 	n, err := strconv.Atoi(nStr)
-	if err != nil || n <= 0 || n > maxN {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n (must be between 1 and 1000)"})
+	if err != nil || n <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n (must be a positive integer)"})
 		return
 	}
 
@@ -59,8 +57,8 @@ func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
 
 	nStr := c.Query("n")
 	n, err := strconv.Atoi(nStr)
-	if err != nil || n <= 0 || n > maxN {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n (must be between 1 and 1000)"})
+	if err != nil || n <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n (must be a positive integer)"})
 		return
 	}
 

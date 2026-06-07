@@ -83,6 +83,15 @@ Configuration comes from environment variables. Locally these are loaded from `.
 
 Both variables are **required** — the service fails fast with a clear error if either is missing.
 
+## Swagger Docs
+
+The API serves interactive **Swagger UI** itself — no extra tooling needed. Once the service is running, open:
+
+- **http://localhost:8081/docs** — Swagger UI to browse and try out every endpoint
+- **http://localhost:8081/openapi.yaml** — the raw OpenAPI 3.0 spec
+
+Every endpoint can be exercised directly from the UI ("Try it out"): create a board, set scores, fetch top `n` / surroundings, populate mock data, etc. The only behaviour you can't trigger here is the **background cleaner's physical deletion** of stale rows — that runs on its own goroutine every 2 hours as housekeeping and has no HTTP endpoint. Note that period **resets are still observable** without it: because reads filter by `periodStart` (the lazy filter), scores from a previous period simply stop showing up once a scheduled board rolls over, even though the rows haven't been deleted yet.
+
 ## API Reference
 
 Base URL: `http://localhost:8081`
@@ -97,6 +106,8 @@ Base URL: `http://localhost:8081`
 | `GET`  | `/boards/{boardId}/scores/{userId}/surroundings?n=5` | A user's score with the `n` above and below |
 | `POST` | `/boards/{boardId}/populate?n=100` | Fill a board with `n` mock users (testing helper) |
 | `GET`  | `/health` | Liveness check |
+| `GET`  | `/docs` | Swagger UI |
+| `GET`  | `/openapi.yaml` | OpenAPI 3.0 spec |
 
 Request/response payloads follow the case-study specification. A few behavioural notes:
 

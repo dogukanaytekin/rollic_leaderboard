@@ -1,0 +1,329 @@
+openapi: 3.0.3
+info:
+  title: Leaderboard API
+  description: REST API for managing leaderboards and tracking user scores.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8081
+tags:
+  - name: boards
+  - name: scores
+  - name: system
+
+paths:
+  /boards:
+    post:
+      tags: [boards]
+      summary: Create a board
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBoardRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateBoardResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    get:
+      tags: [boards]
+      summary: List all boards
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BoardSummary"
+
+  /boards/{boardId}:
+    get:
+      tags: [boards]
+      summary: Get board details
+      parameters:
+        - $ref: "#/components/parameters/BoardId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /boards/{boardId}/scores:
+    post:
+      tags: [scores]
+      summary: Set (overwrite) a user's score
+      parameters:
+        - $ref: "#/components/parameters/BoardId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetScoreRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetScoreResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    get:
+      tags: [scores]
+      summary: Get top N scores
+      parameters:
+        - $ref: "#/components/parameters/BoardId"
+        - $ref: "#/components/parameters/N"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoreEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /boards/{boardId}/scores/{userId}/surroundings:
+    get:
+      tags: [scores]
+      summary: Get a user's score with the N users above and below
+      parameters:
+        - $ref: "#/components/parameters/BoardId"
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/N"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Surroundings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /boards/{boardId}/populate:
+    post:
+      tags: [scores]
+      summary: Populate a board with N mock users (testing helper)
+      parameters:
+        - $ref: "#/components/parameters/BoardId"
+        - name: n
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of mock users to insert.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PopulateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /health:
+    get:
+      tags: [system]
+      summary: Liveness check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+components:
+  parameters:
+    BoardId:
+      name: boardId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    N:
+      name: n
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Number of entries to return (positive integer).
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Schedule:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [interval]
+        intervalSeconds:
+          type: integer
+          format: int64
+          minimum: 1
+      required: [type, intervalSeconds]
+
+    CreateBoardRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Weekly Tournament
+        description:
+          type: string
+          example: Global leaderboard for weekly tournament
+        schedule:
+          $ref: "#/components/schemas/Schedule"
+      required: [name]
+
+    CreateBoardResponse:
+      type: object
+      properties:
+        boardId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        schedule:
+          $ref: "#/components/schemas/Schedule"
+
+    BoardSummary:
+      type: object
+      properties:
+        boardId:
+          type: integer
+          format: int64
+        name:
+          type: string
+
+    BoardDetail:
+      type: object
+      properties:
+        boardId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        schedule:
+          $ref: "#/components/schemas/Schedule"
+        nextResetAt:
+          type: string
+          format: date-time
+
+    SetScoreRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: user_789
+        score:
+          type: integer
+          format: int64
+          example: 1500
+      required: [userId, score]
+
+    SetScoreResponse:
+      type: object
+      properties:
+        boardId:
+          type: integer
+          format: int64
+        userId:
+          type: string
+        score:
+          type: integer
+          format: int64
+
+    ScoreEntry:
+      type: object
+      properties:
+        userId:
+          type: string
+        score:
+          type: integer
+          format: int64
+
+    Surroundings:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/ScoreEntry"
+        above:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoreEntry"
+        below:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoreEntry"
+
+    PopulateResponse:
+      type: object
+      properties:
+        boardId:
+          type: integer
+          format: int64
+        populated:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
