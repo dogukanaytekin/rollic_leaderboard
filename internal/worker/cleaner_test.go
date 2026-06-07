@@ -36,7 +36,7 @@ type mockScoreRepo struct {
 	deleteOldScoresFn func(context.Context, int64, time.Time) error
 }
 
-func (m *mockScoreRepo) Upsert(_ context.Context, s domain.Score) (domain.Score, error) {
+func (m *mockScoreRepo) Upsert(_ context.Context, s domain.Score, _ time.Time) (domain.Score, error) {
 	return s, nil
 }
 func (m *mockScoreRepo) GetTopScores(_ context.Context, _ int64, _ time.Time, _ int) ([]domain.TopScoreEntry, error) {

@@ -38,7 +38,7 @@ type mockScoreRepo struct {
 	getSurroundingsFn func(context.Context, int64, string, time.Time, int) (domain.Surroundings, error)
 }
 
-func (m *mockScoreRepo) Upsert(ctx context.Context, s domain.Score) (domain.Score, error) {
+func (m *mockScoreRepo) Upsert(ctx context.Context, s domain.Score, periodStart time.Time) (domain.Score, error) {
 	return m.upsertFn(ctx, s)
 }
 func (m *mockScoreRepo) GetTopScores(ctx context.Context, boardID int64, periodStart time.Time, n int) ([]domain.TopScoreEntry, error) {

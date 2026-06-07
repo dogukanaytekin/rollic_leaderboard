@@ -14,7 +14,7 @@ type PostgresScoreRepository struct {
 	db *sql.DB
 }
 
-func (r *PostgresScoreRepository) Upsert(ctx context.Context, score domain.Score) (domain.Score, error) {
+func (r *PostgresScoreRepository) Upsert(ctx context.Context, score domain.Score, periodStart time.Time) (domain.Score, error) {
 	query := `
 		INSERT INTO scores (board_id, user_id, score)
 		VALUES ($1, $2, $3)
@@ -22,7 +22,8 @@ func (r *PostgresScoreRepository) Upsert(ctx context.Context, score domain.Score
 		DO UPDATE SET
 			score = EXCLUDED.score,
 			scored_at = CASE
-				WHEN scores.score IS DISTINCT FROM EXCLUDED.score THEN now()
+				WHEN scores.score IS DISTINCT FROM EXCLUDED.score
+					OR scores.scored_at < $4 THEN now()
 				ELSE scores.scored_at
 			END
 		RETURNING scored_at
@@ -35,6 +36,7 @@ func (r *PostgresScoreRepository) Upsert(ctx context.Context, score domain.Score
 		score.BoardID,
 		score.UserID,
 		score.Score,
+		periodStart,
 	).Scan(&score.ScoredAt)
 	if err != nil {
 		return domain.Score{}, err

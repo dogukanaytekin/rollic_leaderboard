@@ -36,7 +36,7 @@ type BoardRepository interface {
 }
 
 type ScoreRepository interface {
-	Upsert(ctx context.Context, score domain.Score) (domain.Score, error)
+	Upsert(ctx context.Context, score domain.Score, periodStart time.Time) (domain.Score, error)
 	GetTopScores(ctx context.Context, boardID int64, periodStart time.Time, n int) ([]domain.TopScoreEntry, error)
 	GetSurroundings(ctx context.Context, boardID int64, userID string, periodStart time.Time, n int) (domain.Surroundings, error)
 	DeleteOldScores(ctx context.Context, boardID int64, periodStart time.Time) error

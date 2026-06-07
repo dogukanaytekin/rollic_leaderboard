@@ -12,6 +12,8 @@ import (
 	"rollic-leaderboard/internal/store"
 )
 
+const maxN = 1000
+
 type setScoreRequest struct {
 	UserID string `json:"userId"`
 	Score  int64  `json:"score"`
@@ -28,8 +30,8 @@ func (app *application) getTopScoresHandler(c *gin.Context) {
 
 	nStr := c.Query("n")
 	n, err := strconv.Atoi(nStr)
-	if err != nil || n <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n"})
+	if err != nil || n <= 0 || n > maxN {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n (must be between 1 and 1000)"})
 		return
 	}
 
@@ -57,8 +59,8 @@ func (app *application) getScoreSurroundingsHandler(c *gin.Context) {
 
 	nStr := c.Query("n")
 	n, err := strconv.Atoi(nStr)
-	if err != nil || n <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n"})
+	if err != nil || n <= 0 || n > maxN {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid value for n (must be between 1 and 1000)"})
 		return
 	}
 
@@ -94,11 +96,16 @@ func (app *application) setScoreHandler(c *gin.Context) {
 		return
 	}
 
+	var periodStart time.Time
+	if board.Schedule != nil {
+		periodStart = calcPeriodStart(board.CreatedAt, board.Schedule.IntervalSeconds, time.Now())
+	}
+
 	score, err := app.store.Scores.Upsert(c.Request.Context(), domain.Score{
 		BoardID: board.ID,
 		UserID:  req.UserID,
 		Score:   req.Score,
-	})
+	}, periodStart)
 	if err != nil {
 		serverError(c, err)
 		return
