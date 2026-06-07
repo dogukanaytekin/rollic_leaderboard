@@ -19,7 +19,12 @@ func (r *PostgresScoreRepository) Upsert(ctx context.Context, score domain.Score
 		INSERT INTO scores (board_id, user_id, score)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (board_id, user_id)
-		DO UPDATE SET score = EXCLUDED.score, scored_at = now()
+		DO UPDATE SET
+			score = EXCLUDED.score,
+			scored_at = CASE
+				WHEN scores.score IS DISTINCT FROM EXCLUDED.score THEN now()
+				ELSE scores.scored_at
+			END
 		RETURNING scored_at
 	`
 
